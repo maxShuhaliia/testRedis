@@ -43,6 +43,9 @@ function getGenaratorIpAndBroadcast() {
 
             publisher.publish("serversCounter", "generatorIp=" + ip);
         })
+        .catch( ( err ) => {
+            console.log('error in catch getGenaratorIpAndBroadcast()', err);
+        })
 }
 
 
