@@ -8,6 +8,7 @@ const events = require('events');
 
 GeneratorChooser.subscribeOnServersMessages();
 
+
 function checkIsGetErrorsMode() {
 
     for( let i = 0; i < process.argv.length ; i++ ) {
