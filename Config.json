@@ -1,4 +1,11 @@
 {
      "ipAddress" : "88.214.193.71",
-     "expireMessage" : 10
+
+
+     "redis": {
+          "host": "88.214.193.71",
+          "port": 5555,
+          "expireMessage" : 5
+     }
+
 }

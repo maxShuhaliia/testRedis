@@ -1,8 +1,25 @@
 const Connection    = require('../Connections.js');
-const redisClient   = Connection.redisClient;
 const Config        = require('../Config.json');
+const handleFunctions = require('./handleFunctions.js');
+
+const redisClient   = Connection.redisClient;
+
 
 let generator       = null;
+
+let redisClientsArray = [];
+
+function setAllServerMessageHandlers () {
+    handleFunctions.getAllServerMessageHandlers( ( clientsArray ) => {
+        redisClientsArray = clientsArray;
+
+        //console.log('redisClientsArray', redisClientsArray);
+    });
+}
+
+setTimeout(setAllServerMessageHandlers, 7000); //7 sec
+setInterval(setAllServerMessageHandlers, 20000);  // 20 sec
+
 
 function Generator( redicClient ) {
 
@@ -26,8 +43,7 @@ function Generator( redicClient ) {
                 return doneCallback(err);
             }
 
-          //  let ttl = Math.floor(Date.now() / 1000) + Config.expireMessage;  // 2 sec
-            let ttl = Math.floor(Date.now() / 1000) + 100000;  // 2 sec
+            let ttl = Math.floor(Date.now() / 1000) + Config.redis.expireMessage;  // 5 sec
 
             redisClient.expireat(key, ttl, (err, status) => {
                 if (err || status !== 1) {
@@ -42,9 +58,28 @@ function Generator( redicClient ) {
 
         let message = getMessage();
 
-        setRecordToRedis( message, doneCallback );
+        setRecordToRedis( message, () => {
+
+            doneCallback();
+            // global.eventEmiter.emit('', () => {
+            //
+            // });
+
+        });
     }
 }
+
+Generator.prototype.getRandomIpAndPidOfClient = function() {
+
+
+    if( redisClientsArray.length === 0 ) return '';
+
+    let randomIndex = Math.floor(Math.random() * redisClientsArray.length);
+
+
+    return redisClientsArray[randomIndex];
+}
+
 
 module.exports.createGenerator = () => {
 

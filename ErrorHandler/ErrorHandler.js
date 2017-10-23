@@ -59,7 +59,7 @@ ErrorHandler.prototype.removeAllErrors = function() {
             return new Promise( ( resolve, reject ) => {
                 redisClient.hdel(key, keys, function (err, data) {
                     if (err) {
-                        console.log("error in redisClient.set qps ", err);
+                        console.log("error in redisClient.hdel removeAllErrors ", err);
                         reject(err);
                         return false;
                     }

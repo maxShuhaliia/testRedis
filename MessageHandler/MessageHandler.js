@@ -30,7 +30,7 @@ MessageHandler.prototype.getMessageAndCheckOnError = function ( mainCallback ) {
             return mainCallback("error in Async.waterfall", err);
         }
 
-        if( resultWaterfall === "generatorGoneAway" ) return mainCallback( resultWaterfall );
+        if( resultWaterfall === "messageNotExists" ) return mainCallback( resultWaterfall );
 
         return mainCallback();
     });

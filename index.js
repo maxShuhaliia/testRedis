@@ -1,91 +1,14 @@
+"use strict";
+const events         = require('events');
+global.eventEmiter    = new events.EventEmitter();
 const generator      = require('./Generator/Generator').createGenerator();
 const errorHandler   = require('./ErrorHandler/ErrorHandler.js').createErrorHandler();
 const messageHandler = require('./MessageHandler/MessageHandler.js').createMessageHandler( errorHandler );
+const ApplicationMode  = require('./applicationModeHandler.js').createApplicationMode();
 
-const GeneratorChooser = require('./serverGeneratorChooser.js').GeneratorChooser();
+const Connection    = require('./Connections.js');
+let publisher       = Connection.publisher;
 
-const events = require('events');
-
-GeneratorChooser.subscribeOnServersMessages();
-
-
-function checkIsGetErrorsMode() {
-
-    for( let i = 0; i < process.argv.length ; i++ ) {
-
-        let parameter = process.argv[i];
-        if( parameter === 'getErrors' ) return true;
-    }
-
-    return false;
-}
-
-
-function runGenerator() {
-
-    generator.generateMessageAndSetToRedis( ( result ) => {
-       // console.log('result', result);
-    });
-}
-
-function setUpGenerator() {
-    if( intervalMessageHandler ) clearInterval(intervalMessageHandler);
-    if( intervalGenerator )      clearInterval(intervalGenerator);
-
-    GeneratorChooser.choseAndNotyfyNewGenerator();
-}
-
-
-function runMessageHandler() {
-    messageHandler.getMessageAndCheckOnError( ( err ) => {
-
-        if( err === "generatorGoneAway" ) {
-            setUpGenerator();
-        }
-        else if( err ) {
-            console.log('error in messageHandler.getMessageAndCheckOnError()', err);
-        }
-        else {
-          //  console.log('ok')
-        }
-
-
-    });
-}
-
-
-let isGetErrorsMode = checkIsGetErrorsMode();
-
-let isGenerator      = false;
-let isMessageHandler = false;
-
-let intervalMessageHandler = null;
-let intervalGenerator      = null;
-
-function printMode() {
-    if( isGenerator )           console.log('Generator mode');
-    if( isMessageHandler )      console.log('Message Handler mode');
-    if( isGetErrorsMode )       console.log('Errors mode');
-}
-
-
-function runApplication() {
-
-    // isGenerator = false;
-    // isGetErrorsMode  = false;
-    // isMessageHandler = true;
-
-    printMode();
-
-    if( isGetErrorsMode === true ) errorHandler.printAllErrorsAndDelete();
-
-    else if( isGenerator === true ) intervalGenerator = setInterval( runGenerator, 500);
-
-    else if( isMessageHandler === true ) intervalMessageHandler = setInterval( runMessageHandler, 500);
-}
-
-
-global.eventEmiter = new events.EventEmitter();
 
 global.eventEmiter.on('setGeneratorMode', () => {
     isGenerator = true;
@@ -98,9 +21,111 @@ global.eventEmiter.on('setMessageHandlerMode', () => {
     runApplication();
 });
 
-if( isGetErrorsMode ) {
+global.eventEmiter.on("readMessage", () => {
+    runMessageHandler();
+});
+
+
+global.isGeneratorMode = false;
+global.isErrorMode     = false;
+global.isMessageMode   = false;
+
+ApplicationMode.getMode(( mode ) => {
+
+    if( mode === "ErrorsMode" ) {
+        
+        global.isErrorMode = true;
+    }
+    else if( mode === "GeneratorMode" ) {
+
+        global.isGeneratorMode = true;
+    }
+    else if(  mode === "MessageMode" ) {
+        
+        global.isMessageMode = true;
+    }
+
+    
     runApplication();
+});
+
+
+function generatorChecking() {
+
+    ApplicationMode.isThisInstanceGenerator( (isGeneratorCurrentMachine) => {
+
+        if( isGeneratorCurrentMachine === true && global.isMessageMode === true ) {
+            global.isMessageMode = false;
+            global.isGeneratorMode = true;
+            runApplication();
+        }
+    });
 }
-else {
-    setUpGenerator();
+
+
+
+setInterval( generatorChecking, 10000 )
+
+
+global.intervalGeneratorMode = null;
+global.intervalMessageMode   = null;
+
+function runApplication() {
+
+
+    printMode();
+
+
+
+    if( global.isGeneratorMode === true ) intervalGeneratorMode = setInterval( runGenerator, 500);
+    
+    else if( global.isErrorMode === true )  errorHandler.printAllErrorsAndDelete();
+
+    else if( global.isMessageMode === true ) {
+
+        // not doing anything  => generator solve who will be recieve message
+
+    }//  intervalMessageMode = setInterval( runMessageHandler, 500);
+}
+
+
+function runGenerator() {
+
+    generator.generateMessageAndSetToRedis( ( result ) => {
+
+        let ipAndPid = generator.getRandomIpAndPidOfClient();
+
+        if( !ipAndPid ) return false;
+
+        publisher.publish("serversExchangeMesssage", "getMessage=" + ipAndPid);
+
+    });
+}
+
+function runMessageHandler() {
+    messageHandler.getMessageAndCheckOnError( ( err ) => {
+
+        if( err === "messageNotExists" ) {
+            console.log('message not exists');
+        }
+        else if( err ) {
+            console.log('error in messageHandler.getMessageAndCheckOnError()', err);
+        }
+        else {
+           // console.log('ok')
+        }
+    });
+}
+
+function printMode() {
+
+    let mode = "";
+
+    if( global.isGeneratorMode === true )       mode = "GeneratorMode";
+
+    else if( global.isErrorMode === true )      mode = "ErrorMode";
+
+    else if( global.isMessageMode === true )    mode = "MessageMode";
+
+    console.log('application run in  ', mode);
 }

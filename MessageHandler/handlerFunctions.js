@@ -29,7 +29,7 @@ function getArrayWaterfallFunctions( redisClient ) {
 
 
             //  if record not exists in redis => generator gone away
-            if( message === null ) return callback(null, "generatorGoneAway");
+            if( message === null ) return callback(null, "messageNotExists");
 
             // check on error message
             return eventHandler( message, callback )
